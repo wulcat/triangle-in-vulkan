@@ -16,7 +16,7 @@ private:
 	GLFWwindow* window;
 	VkInstance instance;
 
-	void initWindow();
+	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
 	void mainLoop(); // to render on window
 	void cleanup(); // after closing window, deallocating resources
