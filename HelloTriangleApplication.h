@@ -27,10 +27,13 @@ public:
 	void run();
 private:
 	GLFWwindow* window; // pointer variable which stores memory address of variable
+
 	VkInstance instance;
+	VkDebugUtilsMessengerEXT debugMessenger;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
+	void setupDebugMessenger();
 	void mainLoop(); // to render on window
 	void cleanup(); // after closing window, deallocating resources
 
@@ -40,5 +43,18 @@ private:
 	void getAndPrintSupportedExtensions();
 
 	bool checkValidationLayerSupport();
+	std::vector<const char*> getRequiredExtensions();
+
+	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+		VkDebugUtilsMessageTypeFlagsEXT messageType,
+		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+		void* pUserData);
+
+	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+
+	// according to documentaion this is a proxy function (basically proxy pattern)
+	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 };
 
