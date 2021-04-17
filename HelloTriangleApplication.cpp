@@ -41,6 +41,12 @@ void HelloTriangleApplication::cleanup() {
 }
 
 void HelloTriangleApplication::createInstance() {
+	// if debug is on and no validation layers are found for error verbose and profiling throw error
+	if (enableValidationLayers && !checkValidationLayerSupport()) {
+		throw std::runtime_error("validation layers requested, but not available!");
+	}
+
+
 	// Create struct and pass it to vulkan to create instance
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -63,12 +69,19 @@ void HelloTriangleApplication::createInstance() {
 	createInfo.ppEnabledExtensionNames = glfwExtensions;
 	createInfo.enabledLayerCount = 0;
 
+	// Print about extensions
 	getAndPrintRequiredExtensions(glfwExtensions, glfwExtensionCount);
 	getAndPrintSupportedExtensions();
 
-	// Create Vulkan Instance here
-	//VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
+	if (enableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+		createInfo.ppEnabledLayerNames = validationLayers.data();
+	}
+	else {
+		createInfo.enabledLayerCount = 0;
+	}
 
+	// Create Vulkan Instance here
 	if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create instance!");
 	}
@@ -95,4 +108,35 @@ void HelloTriangleApplication::getAndPrintSupportedExtensions() {
 	for (const auto& extension : extensions) {
 		std::cout << '\t' << extension.extensionName << '\n';
 	}
+}
+
+bool HelloTriangleApplication::checkValidationLayerSupport() {
+	uint32_t layerCount;
+	// pass the memory address of layercount (&layerCount)
+	vkEnumerateInstanceLayerProperties(&layerCount, nullptr); 
+	
+	// vecotr is sequence container like array
+	std::vector<VkLayerProperties> availableLayers(layerCount);
+
+	// vector.data() returns direct pointer to memory array used internally by vector to store its owned elements
+	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+	// this is range - for loop |
+	for (const char* layerName : validationLayers) {
+		bool layerFound = false;
+
+		// const type& name : vector - get a reference from the sequnce container
+		for (const VkLayerProperties& layerProperties : availableLayers) {
+			if (strcmp(layerName, layerProperties.layerName)) {
+				layerFound = true;
+				break;
+			}
+		}
+
+		if (!layerFound) {
+			return false;
+		}
+	}
+
+	return true;
 }

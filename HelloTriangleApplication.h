@@ -5,15 +5,28 @@
 
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+
+// std::vector is sequence container
+const std::vector<const char*> validationLayers = {
+	"VK_LAYER_KHRONOS_validation"
+};
+
+#ifdef NDEBUG
+	const bool enableValidationLayers = false;
+#else
+	const bool enableValidationLayers = true;
+#endif
+
 
 class HelloTriangleApplication {
 public:
 	void run();
 private:
-	GLFWwindow* window;
+	GLFWwindow* window; // pointer variable which stores memory address of variable
 	VkInstance instance;
 
 	void initWindow(); // setup the glfw for application
@@ -25,5 +38,7 @@ private:
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
+
+	bool checkValidationLayerSupport();
 };
 
