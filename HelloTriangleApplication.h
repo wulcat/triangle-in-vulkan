@@ -45,6 +45,8 @@ private:
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	VkDevice device;
+	VkQueue graphicsQueue;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
@@ -53,6 +55,7 @@ private:
 	void cleanup(); // after closing window, deallocating resources
 
 	void createInstance();
+	void createLogicalDevice();
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
@@ -70,5 +73,7 @@ private:
 
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	void pickPhysicalDevice();
+
+	
 };
 

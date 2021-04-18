@@ -23,6 +23,7 @@ void HelloTriangleApplication::initVulkan() {
 	createInstance();
 	setupDebugMessenger();
 	pickPhysicalDevice();
+	createLogicalDevice();
 }
 
 void HelloTriangleApplication::setupDebugMessenger() {
@@ -49,6 +50,8 @@ void HelloTriangleApplication::mainLoop() {
 
 // After the application is closed destroy the objects
 void HelloTriangleApplication::cleanup() {
+	vkDestroyDevice(device, nullptr);
+
 	if (enableValidationLayers) {
 		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 	}
@@ -125,7 +128,7 @@ void HelloTriangleApplication::pickPhysicalDevice() {
 
 	// We allocate an array to hold all of available physical devices (gpu)
 	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()); // if i pass nullptr instead of devices.data(), the class variable devices returns null
 
 	// Check if the physical device meets the requirment for running this application
 	for (const auto& device : devices) {
@@ -140,6 +143,50 @@ void HelloTriangleApplication::pickPhysicalDevice() {
 	}
 
 
+}
+
+void HelloTriangleApplication::createLogicalDevice() {
+	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+	// currently we are only intreseed in queue with graphics capabities
+	VkDeviceQueueCreateInfo queueCreateInfo{};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+	queueCreateInfo.queueCount = 1;
+
+	// vulkan lets us assign priorites to queues to influce the scheduling of command buffer execution
+	float queuePriority = 1.0f;
+	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkPhysicalDeviceFeatures deviceFeatures{};
+
+	VkDeviceCreateInfo deviceCreateInfo{};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+	deviceCreateInfo.queueCreateInfoCount = 1;
+	
+	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+
+	deviceCreateInfo.enabledExtensionCount = 0;
+
+	// compared to createInstance of vulkan this requies to specify extensions and validation layers
+	// this time this is device specific
+	// an eg. is VK_KHR_swapchain - allows you to render present images from a device to windows
+	if (enableValidationLayers) {
+		deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+		deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+	}
+	else {
+		deviceCreateInfo.enabledLayerCount = 0;
+	}
+
+	// lets create the logical device
+	if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device) != VK_SUCCESS) {
+		throw std::runtime_error("failed to craete logical device");
+	}
+
+	vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
 }
 
 
@@ -236,7 +283,7 @@ QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice 
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount); // error (device is null)
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 	
 	// find atleast one queue family which supports VK_QUEUE_GRAPHICS_BITS
@@ -244,12 +291,13 @@ QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice 
 	for (const auto& queueFamily : queueFamilies) {
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) { // revised: `&` find's the common bit 
 			indices.graphicsFamily = i;
-		}
+		}	
 
 		// for early exit since we have foudn suitable queue
 		if (indices.isComplete()) {
 			break;
 		}
+
 		i++;
 	}
 
@@ -282,10 +330,6 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
 	}
 }
-
-//VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-//	return VkResult();
-//}
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
