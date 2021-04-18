@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <optional> // c++17 introduced a data structure to distinguish betwen the case of a value exisiting or not
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -21,6 +22,19 @@ const std::vector<const char*> validationLayers = {
 	const bool enableValidationLayers = true;
 #endif
 
+// according to documentaion this is a proxy function (basically proxy pattern)
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+
+struct QueueFamilyIndices {
+	// optional has no value by default until a value has assigned
+	// graphicsFamily.has_value() will return false until a value has been assigned
+	std::optional<uint32_t> graphicsFamily;
+
+	bool isComplete() {
+		return graphicsFamily.has_value();
+	}
+};
 
 class HelloTriangleApplication {
 public:
@@ -30,6 +44,7 @@ private:
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
@@ -44,6 +59,8 @@ private:
 
 	bool checkValidationLayerSupport();
 	std::vector<const char*> getRequiredExtensions();
+	bool isDeviceSuitable(VkPhysicalDevice device); // checks for best and support gpu (usefull for VR to check support for 64 bit floats and multi viewport rendering)
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device); // finds graphics queue family
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -52,9 +69,6 @@ private:
 		void* pUserData);
 
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-
-	// according to documentaion this is a proxy function (basically proxy pattern)
-	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
-	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+	void pickPhysicalDevice();
 };
 

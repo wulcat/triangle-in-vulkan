@@ -22,6 +22,7 @@ void HelloTriangleApplication::initWindow() {
 void HelloTriangleApplication::initVulkan() {
 	createInstance();
 	setupDebugMessenger();
+	pickPhysicalDevice();
 }
 
 void HelloTriangleApplication::setupDebugMessenger() {
@@ -113,23 +114,32 @@ void HelloTriangleApplication::createInstance() {
 	}
 }
 
-VkResult HelloTriangleApplication::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+void HelloTriangleApplication::pickPhysicalDevice() {
+	// We find the available gpu count (if not we end the application)
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
-	if (func != nullptr) {
-		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+	if (deviceCount == 0) {
+		throw std::runtime_error("failed to find GPUs with vulkan support");
 	}
-	else {
-		return VK_ERROR_EXTENSION_NOT_PRESENT;
-	}
-}
 
-void HelloTriangleApplication::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-	
-	if (func != nullptr) {
-		func(instance, debugMessenger, pAllocator);
+	// We allocate an array to hold all of available physical devices (gpu)
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+	// Check if the physical device meets the requirment for running this application
+	for (const auto& device : devices) {
+		if (isDeviceSuitable(device)) {
+			physicalDevice = device;
+			break;
+		}
 	}
+
+	if (physicalDevice == VK_NULL_HANDLE) {
+		throw std::runtime_error("failed to find suitable physical device (GPU)");
+	}
+
+
 }
 
 
@@ -204,6 +214,48 @@ std::vector<const char*> HelloTriangleApplication::getRequiredExtensions() {
 	return extensions;
 }
 
+bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device) {
+	//VkPhysicalDeviceProperties deviceProperties;
+	//VkPhysicalDeviceFeatures deviceFeatures;
+	//vkGetPhysicalDeviceProperties(device, &deviceProperties);
+	//vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	//// instead of checking if a device is suitable or not, we can pick the best device with higher score
+	//// check the tutorial for this example (page 86: Base device sutablity checks)
+	//return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;
+
+	QueueFamilyIndices indices = findQueueFamilies(device);
+
+	return indices.isComplete();
+}
+
+QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice device) {
+	QueueFamilyIndices indices;
+
+	// logic to find queue family indices to populate struct with
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	
+	// find atleast one queue family which supports VK_QUEUE_GRAPHICS_BITS
+	int i = 0;
+	for (const auto& queueFamily : queueFamilies) {
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) { // revised: `&` find's the common bit 
+			indices.graphicsFamily = i;
+		}
+
+		// for early exit since we have foudn suitable queue
+		if (indices.isComplete()) {
+			break;
+		}
+		i++;
+	}
+
+	return indices;
+}
+
 
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
@@ -218,4 +270,27 @@ void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMess
 	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	createInfo.pfnUserCallback = debugCallback;
 	createInfo.pUserData = nullptr;
+}
+
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+
+	if (func != nullptr) {
+		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+	}
+	else {
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+
+//VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+//	return VkResult();
+//}
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+
+	if (func != nullptr) {
+		func(instance, debugMessenger, pAllocator);
+	}
 }
