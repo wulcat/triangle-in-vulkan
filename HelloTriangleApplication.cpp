@@ -22,6 +22,7 @@ void HelloTriangleApplication::initWindow() {
 void HelloTriangleApplication::initVulkan() {
 	createInstance();
 	setupDebugMessenger();
+	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
 }
@@ -56,6 +57,7 @@ void HelloTriangleApplication::cleanup() {
 		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 	}
 
+	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(this->instance, nullptr);
 
 	glfwDestroyWindow(this->window);
@@ -143,6 +145,12 @@ void HelloTriangleApplication::pickPhysicalDevice() {
 	}
 
 
+}
+
+void HelloTriangleApplication::createSurface() {
+	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create window surface");
+	}
 }
 
 void HelloTriangleApplication::createLogicalDevice() {
@@ -284,14 +292,21 @@ QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice 
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount); // error (device is null)
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());	
 	
 	// find atleast one queue family which supports VK_QUEUE_GRAPHICS_BITS
 	int i = 0;
 	for (const auto& queueFamily : queueFamilies) {
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) { // revised: `&` find's the common bit 
 			indices.graphicsFamily = i;
-		}	
+		}
+
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+		if (presentSupport) {
+			indices.presentFamily = i;
+		}
 
 		// for early exit since we have foudn suitable queue
 		if (indices.isComplete()) {

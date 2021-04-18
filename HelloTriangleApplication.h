@@ -30,9 +30,10 @@ struct QueueFamilyIndices {
 	// optional has no value by default until a value has assigned
 	// graphicsFamily.has_value() will return false until a value has been assigned
 	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily; // for checking if window surface supports the drawiing
 
 	bool isComplete() {
-		return graphicsFamily.has_value();
+		return graphicsFamily.has_value() && presentFamily.has_value();
 	}
 };
 
@@ -44,8 +45,11 @@ private:
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
+	VkSurfaceKHR surface;
+
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	VkDevice device;
+
 	VkQueue graphicsQueue;
 
 	void initWindow(); // setup the glfw for application
@@ -74,6 +78,6 @@ private:
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	void pickPhysicalDevice();
 
-	
+	void createSurface();
 };
 
