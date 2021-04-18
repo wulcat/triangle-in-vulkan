@@ -25,6 +25,7 @@ void HelloTriangleApplication::initVulkan() {
 	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
+	createSwapChain();
 }
 
 void HelloTriangleApplication::setupDebugMessenger() {
@@ -51,6 +52,7 @@ void HelloTriangleApplication::mainLoop() {
 
 // After the application is closed destroy the objects
 void HelloTriangleApplication::cleanup() {
+	vkDestroySwapchainKHR(device, swapChain, nullptr);
 	vkDestroyDevice(device, nullptr);
 
 	if (enableValidationLayers) {
@@ -147,10 +149,121 @@ void HelloTriangleApplication::pickPhysicalDevice() {
 
 }
 
+VkSurfaceFormatKHR HelloTriangleApplication::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+	for (const auto& availableFormat : availableFormats) {
+		if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			return availableFormat;
+		}
+	}
+
+	// if the above fails we just use the first available format
+	return availableFormats[0];
+}
+
+VkPresentModeKHR HelloTriangleApplication::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+	for (const auto& availablePresentMode : availablePresentModes) {
+		if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) { // triple buffering low latency no tearing
+			return availablePresentMode;
+		}
+	}
+
+	return VK_PRESENT_MODE_FIFO_KHR; // similar to vsync (double buffering) no tearing
+}
+
+VkExtent2D HelloTriangleApplication::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilties) {
+	if (capabilties.currentExtent.width != UINT32_MAX) {
+		return capabilties.currentExtent;
+	}
+	else {
+		VkExtent2D actualExtent = { WIDTH, HEIGHT };
+
+		// clamp the WIDTH and HEIGHT to availalbe min and max supported by our implementation
+		actualExtent.width = std::max(capabilties.minImageExtent.width, std::min(capabilties.maxImageExtent.width, actualExtent.width));
+		actualExtent.height = std::max(capabilties.minImageExtent.height, std::min(capabilties.maxImageExtent.height, actualExtent.height));
+
+		return actualExtent;
+	}
+}
+
 void HelloTriangleApplication::createSurface() {
 	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create window surface");
 	}
+}
+
+void HelloTriangleApplication::createSwapChain() {
+	SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+
+	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+	VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+	VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilties);
+
+	// to avoid waiting before internal operations are complete we request one additional image
+	uint32_t imageCount = swapChainSupport.capabilties.minImageCount + 1;
+
+	if (swapChainSupport.capabilties.maxImageCount > 0 && imageCount > swapChainSupport.capabilties.maxImageCount) {
+		imageCount = swapChainSupport.capabilties.maxImageCount;
+	}
+
+	// as a tradtion with vulkan objects, creating the swap chain object requires filling in a large structure
+	VkSwapchainCreateInfoKHR createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.surface = surface;
+
+	createInfo.minImageCount = imageCount;
+	createInfo.imageFormat = surfaceFormat.format;
+	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.imageExtent = extent; // safe comment-out (validation layer detects this mistake)
+	createInfo.imageArrayLayers = 1; // amount layers each image consists of (only useful for 3d stereoscopic app)
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // for post-processing use vk_image_usage_transfer_dst_bit
+
+	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+	uint32_t queueFamilyIndices[] = {
+		indices.graphicsFamily.value(),
+		indices.presentFamily.value()
+	};
+
+	if (indices.graphicsFamily != indices.presentFamily) {
+		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		createInfo.queueFamilyIndexCount = 2;
+		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+	}
+	else {
+		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0; // optional
+		createInfo.pQueueFamilyIndices = nullptr; // optional
+	}
+
+	// soemthign realated to rotation (90 degree clockwise or horizontal flip)
+	createInfo.preTransform = swapChainSupport.capabilties.currentTransform;
+	// we want to ignore the alpha channel
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+	// clip the pixels which are not presenting (visible on window)
+	createInfo.presentMode = presentMode;
+	createInfo.clipped = VK_TRUE;
+
+	// in vulkan swap chain can become invalid or unoptimized while running application
+	// if we resize the window the swap chain has to be recreated from scratch (todo in later chapters)
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create swap chain");
+	}
+
+
+	// Add handles
+	vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+	swapChainImages.resize(imageCount); // set the size with max image count availabe from swap chain
+	vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+
+	VkSwapchainKHR swapChain;
+	std::vector<VkImage> swapChainImages;
+	VkFormat swapChainImageFormat;
+	VkExtent2D swapChainExtent;
+
+	swapChainImageFormat = surfaceFormat.format;
+	swapChainExtent = extent;
 }
 
 void HelloTriangleApplication::createLogicalDevice() {
@@ -308,9 +421,17 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device) {
 
 	QueueFamilyIndices indices = findQueueFamilies(device);
 
+	// important we try to only query for swap chain support after verifying that the extension is available
 	bool extensionsSupported = checkDeviceExtensionSupport(device);
+	bool swapChainAdequate = false;	
+	if (extensionsSupported) {
+		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
+		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+	}
 
-	return indices.isComplete() && extensionsSupported;
+	
+
+	return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
 QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice device) {
@@ -346,6 +467,30 @@ QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice 
 	}
 
 	return indices;
+}
+
+SwapChainSupportDetails HelloTriangleApplication::querySwapChainSupport(VkPhysicalDevice device) {
+	SwapChainSupportDetails details;
+
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilties);
+
+	uint32_t formatCount;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+
+	if (formatCount != 0) {
+		details.formats.resize(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+	}
+
+	uint32_t presentModeCount; 
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+
+	if (presentModeCount != 0) {
+		details.presentModes.resize(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
+	}
+
+	return details;
 }
 
 

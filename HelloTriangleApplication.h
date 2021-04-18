@@ -8,6 +8,8 @@
 #include <cstring>
 #include <optional> // c++17 introduced a data structure to distinguish betwen the case of a value exisiting or not
 #include <set> // elements are unique and cannot be modified once added but add/remove can be done
+#include <cstdint> // necessary for uint32_max (do reserach on this)
+#include <algorithm> // do reserach on this as well
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -43,6 +45,12 @@ struct QueueFamilyIndices {
 	}
 };
 
+struct SwapChainSupportDetails {
+	VkSurfaceCapabilitiesKHR capabilties;
+	std::vector<VkSurfaceFormatKHR> formats;
+	std::vector<VkPresentModeKHR> presentModes;
+};
+
 class HelloTriangleApplication {
 public:
 	void run();
@@ -51,13 +59,17 @@ private:
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
-	VkSurfaceKHR surface;
+	VkSurfaceKHR surface; // device and surface are core components of swap chain
 
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	VkDevice device;
 
 	VkQueue graphicsQueue;
 	VkQueue presentQueue; // for window surface (presentational queue)
+
+	VkSwapchainKHR swapChain;
+
+	std::vector<VkImage> swapChainImages;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
@@ -67,18 +79,22 @@ private:
 
 	void createInstance();
 	void createLogicalDevice();
+	void createSurface();
+	void createSwapChain();
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
 
 	bool checkValidationLayerSupport();
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+	bool isDeviceSuitable(VkPhysicalDevice device); // checks for best and support gpu (usefull for VR to check support for 64 bit floats and multi viewport rendering)
 
 	std::vector<const char*> getRequiredExtensions();
 
-	bool isDeviceSuitable(VkPhysicalDevice device); // checks for best and support gpu (usefull for VR to check support for 64 bit floats and multi viewport rendering)
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device); // finds graphics queue family
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 
+	// do some research on this function
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -88,6 +104,9 @@ private:
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	void pickPhysicalDevice();
 
-	void createSurface();
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilties); // resolution of swap chain images (almost equal to resolution of window)
+	
 };
 
