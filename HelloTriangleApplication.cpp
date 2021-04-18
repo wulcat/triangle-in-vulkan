@@ -185,7 +185,8 @@ void HelloTriangleApplication::createLogicalDevice() {
 	
 	// Enabling device features with no extensions
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
-	deviceCreateInfo.enabledExtensionCount = 0;
+	deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+	deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
 	// compared to createInstance of vulkan this requies to specify extensions and validation layers
 	// this time this is device specific
@@ -262,6 +263,22 @@ bool HelloTriangleApplication::checkValidationLayerSupport() {
 	return true;
 }
 
+bool HelloTriangleApplication::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+	uint32_t extensionCount;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+	std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+	for (const auto& extension : availableExtensions) {
+		requiredExtensions.erase(extension.extensionName); // removes and shrinks the set size
+	}
+
+	return requiredExtensions.empty(); // returns wheather the set empty or not (bool)
+}
+
 std::vector<const char*> HelloTriangleApplication::getRequiredExtensions() {
 	uint32_t glfwExtensionCount = 0; // unsigned fixed 32 bit integer
 	const char** glfwExtensions; // pointer to pointer of char (like 2D array or array of arrays of char)
@@ -291,7 +308,9 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device) {
 
 	QueueFamilyIndices indices = findQueueFamilies(device);
 
-	return indices.isComplete();
+	bool extensionsSupported = checkDeviceExtensionSupport(device);
+
+	return indices.isComplete() && extensionsSupported;
 }
 
 QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice device) {

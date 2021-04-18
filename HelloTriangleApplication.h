@@ -17,6 +17,11 @@ const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
 };
 
+// for swap-chains
+const std::vector<const char*> deviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;
 #else
@@ -67,7 +72,10 @@ private:
 	void getAndPrintSupportedExtensions();
 
 	bool checkValidationLayerSupport();
+	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+
 	std::vector<const char*> getRequiredExtensions();
+
 	bool isDeviceSuitable(VkPhysicalDevice device); // checks for best and support gpu (usefull for VR to check support for 64 bit floats and multi viewport rendering)
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device); // finds graphics queue family
 
