@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstring>
 #include <optional> // c++17 introduced a data structure to distinguish betwen the case of a value exisiting or not
+#include <set> // elements are unique and cannot be modified once added but add/remove can be done
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -51,6 +52,7 @@ private:
 	VkDevice device;
 
 	VkQueue graphicsQueue;
+	VkQueue presentQueue; // for window surface (presentational queue)
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
