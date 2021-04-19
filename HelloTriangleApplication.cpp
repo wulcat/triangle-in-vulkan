@@ -298,6 +298,10 @@ void HelloTriangleApplication::createImageViews() {
 	}
 }
 
+void HelloTriangleApplication::createGraphicsPipeline() {
+
+}
+
 void HelloTriangleApplication::createLogicalDevice() {
 	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
