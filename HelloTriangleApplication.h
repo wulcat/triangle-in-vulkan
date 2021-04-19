@@ -69,7 +69,11 @@ private:
 
 	VkSwapchainKHR swapChain;
 
+	VkFormat swapChainImageFormat;
+	VkExtent2D swapChainExtent;
+
 	std::vector<VkImage> swapChainImages;
+	std::vector<VkImageView> swapChainImageViews;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
@@ -81,6 +85,7 @@ private:
 	void createLogicalDevice();
 	void createSurface();
 	void createSwapChain();
+	void createImageViews();
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
