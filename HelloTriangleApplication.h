@@ -81,7 +81,7 @@ private:
 	// tessellation - adding more vertices to existing geometry (basically subdivide a gemotery like we do in blender)
 	// geomtery shader - processes primitives (not used due to performance)
 	// rasterization -
-	// fragment shader - adding colors to vertexes (usefull for shadow map generation)
+	// fragment shader - adding colors and depth to vertexes (usefull for shadow map generation)
 	// color blending - 
 
 	// stages with green color - fixed -function stages -> tweak there operations using parameters
