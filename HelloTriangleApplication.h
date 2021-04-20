@@ -73,6 +73,7 @@ private:
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 
+	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
 
 	std::vector<VkImage> swapChainImages;
@@ -102,6 +103,7 @@ private:
 	void createSurface();
 	void createSwapChain();
 	void createImageViews();
+	void createRenderPass();
 	void createGraphicsPipeline();
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
