@@ -55,6 +55,7 @@ void HelloTriangleApplication::mainLoop() {
 
 // After the application is closed destroy the objects
 void HelloTriangleApplication::cleanup() {
+	vkDestroyPipeline(device, graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
 
@@ -519,6 +520,35 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 		throw std::runtime_error("failed to create pipeline layout");
 	}
 
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
+
+	// fixed function stage references
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = nullptr;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDynamicState = nullptr; 
+
+	// vulkan handle rather than struc pointer
+	pipelineInfo.layout = pipelineLayout; 
+
+	pipelineInfo.renderPass = renderPass;
+	pipelineInfo.subpass = 0;
+
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
+	pipelineInfo.basePipelineIndex = -1; // optional
+
+
+	// second param is related pipeline cache for reuse purpose f
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline");
+	}
 
 	// cleanup right away after use
 	vkDestroyShaderModule(device, vertShaderModule, nullptr);
