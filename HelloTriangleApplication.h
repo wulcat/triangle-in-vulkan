@@ -73,9 +73,12 @@ private:
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 
+	VkPipelineLayout pipelineLayout;
+
 	std::vector<VkImage> swapChainImages;
 	std::vector<VkImageView> swapChainImageViews;
 
+	// Graphics Pipeline stuff related
 	// buffer - a part of physical memory storage used to temp store data while its being moved 
 	// assembler - a program which takes basic comput instructions and converts them into bits that cpu can use to perform its operations
 	// vertex shader - graphics processing function used to add special effects to objects in 3d env (performs maths)
