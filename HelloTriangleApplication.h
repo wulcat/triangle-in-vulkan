@@ -10,6 +10,7 @@
 #include <set> // elements are unique and cannot be modified once added but add/remove can be done
 #include <cstdint> // necessary for uint32_max (do reserach on this)
 #include <algorithm> // do reserach on this as well
+#include <fstream> // used for file system like c#
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -119,12 +120,17 @@ private:
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 		void* pUserData);
 
+	static std::vector<char> readFile(const std::string& fileName);
+
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	void pickPhysicalDevice();
 
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilties); // resolution of swap chain images (almost equal to resolution of window)
+
+	// helper functions so that we can pass shader code to pipeline
+	VkShaderModule createShaderModule(const std::vector<char>& code);
 	
 };
 
