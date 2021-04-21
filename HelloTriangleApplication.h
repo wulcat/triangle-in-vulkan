@@ -79,6 +79,7 @@ private:
 
 	std::vector<VkImage> swapChainImages;
 	std::vector<VkImageView> swapChainImageViews;
+	std::vector<VkFramebuffer> swapChainFramebuffers; // holds the refs to all image view objects
 
 	// Graphics Pipeline stuff related
 	// buffer - a part of physical memory storage used to temp store data while its being moved 
@@ -106,6 +107,7 @@ private:
 	void createImageViews();
 	void createRenderPass();
 	void createGraphicsPipeline();
+	void createFrameBuffers();
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
