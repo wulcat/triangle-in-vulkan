@@ -29,6 +29,9 @@ void HelloTriangleApplication::initVulkan() {
 	createImageViews();
 	createRenderPass();
 	createGraphicsPipeline();
+	createFrameBuffers();
+	createCommandPool();
+	createCommandBuffers();
 }
 
 void HelloTriangleApplication::setupDebugMessenger() {
@@ -55,6 +58,8 @@ void HelloTriangleApplication::mainLoop() {
 
 // After the application is closed destroy the objects
 void HelloTriangleApplication::cleanup() {
+	vkDestroyCommandPool(device, commandPool, nullptr);
+
 	vkDestroyPipeline(device, graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
@@ -515,47 +520,47 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 0; // optional
-	pipelineLayoutInfo.pSetLayouts = nullptr; // optional
-	pipelineLayoutInfo.pushConstantRangeCount = 0; // optional
-	pipelineLayoutInfo.pPushConstantRanges = nullptr; // optional
+pipelineLayoutInfo.pSetLayouts = nullptr; // optional
+pipelineLayoutInfo.pushConstantRangeCount = 0; // optional
+pipelineLayoutInfo.pPushConstantRanges = nullptr; // optional
 
-	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout)) {
-		throw std::runtime_error("failed to create pipeline layout");
-	}
+if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout)) {
+	throw std::runtime_error("failed to create pipeline layout");
+}
 
-	VkGraphicsPipelineCreateInfo pipelineInfo{};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStages;
+VkGraphicsPipelineCreateInfo pipelineInfo{};
+pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+pipelineInfo.stageCount = 2;
+pipelineInfo.pStages = shaderStages;
 
-	// fixed function stage references
-	pipelineInfo.pVertexInputState = &vertexInputInfo;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
-	pipelineInfo.pViewportState = &viewportState;
-	pipelineInfo.pRasterizationState = &rasterizer;
-	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = nullptr;
-	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.pDynamicState = nullptr; 
+// fixed function stage references
+pipelineInfo.pVertexInputState = &vertexInputInfo;
+pipelineInfo.pInputAssemblyState = &inputAssembly;
+pipelineInfo.pViewportState = &viewportState;
+pipelineInfo.pRasterizationState = &rasterizer;
+pipelineInfo.pMultisampleState = &multisampling;
+pipelineInfo.pDepthStencilState = nullptr;
+pipelineInfo.pColorBlendState = &colorBlending;
+pipelineInfo.pDynamicState = nullptr;
 
-	// vulkan handle rather than struc pointer
-	pipelineInfo.layout = pipelineLayout; 
+// vulkan handle rather than struc pointer
+pipelineInfo.layout = pipelineLayout;
 
-	pipelineInfo.renderPass = renderPass;
-	pipelineInfo.subpass = 0;
+pipelineInfo.renderPass = renderPass;
+pipelineInfo.subpass = 0;
 
-	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
-	pipelineInfo.basePipelineIndex = -1; // optional
+pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
+pipelineInfo.basePipelineIndex = -1; // optional
 
 
-	// second param is related pipeline cache for reuse purpose f
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create graphics pipeline");
-	}
+// second param is related pipeline cache for reuse purpose f
+if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline) != VK_SUCCESS) {
+	throw std::runtime_error("failed to create graphics pipeline");
+}
 
-	// cleanup right away after use
-	vkDestroyShaderModule(device, vertShaderModule, nullptr);
-	vkDestroyShaderModule(device, fragShaderModule, nullptr);
+// cleanup right away after use
+vkDestroyShaderModule(device, vertShaderModule, nullptr);
+vkDestroyShaderModule(device, fragShaderModule, nullptr);
 }
 
 void HelloTriangleApplication::createFrameBuffers() {
@@ -575,10 +580,82 @@ void HelloTriangleApplication::createFrameBuffers() {
 		framebufferInfo.height = swapChainExtent.height;
 		framebufferInfo.layers = 1;
 
-		if(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 	}
+}
+
+void HelloTriangleApplication::createCommandPool() {
+	QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+	VkCommandPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+	poolInfo.flags = 0; // optional
+
+	if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create command pool!");
+	}
+}
+
+void HelloTriangleApplication::createCommandBuffers() {
+	commandBuffers.resize(swapChainFramebuffers.size());
+
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+
+	if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate commnad buffers!");
+	}
+
+	// recording command buffers
+	for (size_t i = 0; i < commandBuffers.size(); i++) {
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = 0; // optional
+		beginInfo.pInheritanceInfo = nullptr; // optional (only relevant for second commnad buffer)
+
+		if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
+			throw std::runtime_error("failed to begin recording command buffer");
+		}
+
+		// starting the render pass
+		VkRenderPassBeginInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+
+		// we created a framebuffer for each swap chain image that specifies it as color attachment
+		renderPassInfo.renderPass = renderPass;
+		renderPassInfo.framebuffer = swapChainFramebuffers[i]; 
+
+		// size of render area
+		renderPassInfo.renderArea.offset = { 0, 0 };
+		renderPassInfo.renderArea.extent = swapChainExtent;
+
+		// The base color after clearing the frame 
+		VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+		renderPassInfo.clearValueCount = 1;
+		renderPassInfo.pClearValues = &clearColor;
+
+		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+		// command buffer, vertexCount (3 vertices of traingle), 1 instanceCount for rendering, defines lowest value of gl_VertextIndex, defines lowes value of gl_InstanceIndex
+		vkCmdDraw(commandBuffers[i], 3, 1, 0, 0); 
+
+		vkCmdEndRenderPass(commandBuffers[i]);
+
+		if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to record command buffer!");
+		}
+	}
+
+	
+
+
 }
 
 void HelloTriangleApplication::createLogicalDevice() {

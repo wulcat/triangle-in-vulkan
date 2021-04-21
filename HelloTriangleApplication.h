@@ -76,10 +76,13 @@ private:
 	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
+	VkCommandPool commandPool; // record all of the operations in command buffer in advance and in multiple threads
 
 	std::vector<VkImage> swapChainImages;
 	std::vector<VkImageView> swapChainImageViews;
+
 	std::vector<VkFramebuffer> swapChainFramebuffers; // holds the refs to all image view objects
+	std::vector<VkCommandBuffer> commandBuffers;
 
 	// Graphics Pipeline stuff related
 	// buffer - a part of physical memory storage used to temp store data while its being moved 
@@ -108,6 +111,8 @@ private:
 	void createRenderPass();
 	void createGraphicsPipeline();
 	void createFrameBuffers();
+	void createCommandPool(); // create the command pool in the beginning and use them again and again later on
+	void createCommandBuffers(); // alocation of command buffers
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
