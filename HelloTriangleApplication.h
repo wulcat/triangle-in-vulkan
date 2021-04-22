@@ -65,6 +65,19 @@ private:
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	VkDevice device;
 
+	// Graphics Pipeline stuff related
+	// buffer - a part of physical memory storage used to temp store data while its being moved 
+	// assembler - a program which takes basic comput instructions and converts them into bits that cpu can use to perform its operations
+	// vertex shader - graphics processing function used to add special effects to objects in 3d env (performs maths)
+	// tessellation - adding more vertices to existing geometry (basically subdivide a gemotery like we do in blender)
+	// geomtery shader - processes primitives (not used due to performance)
+	// rasterization -
+	// fragment shader - adding colors and depth to vertexes (usefull for shadow map generation)
+	// color blending - 
+
+	// stages with green color - fixed -function stages -> tweak there operations using parameters
+	// stages with orange color - we can upload own code to graphics card
+
 	VkQueue graphicsQueue;
 	VkQueue presentQueue; // for window surface (presentational queue)
 
@@ -84,24 +97,17 @@ private:
 	std::vector<VkFramebuffer> swapChainFramebuffers; // holds the refs to all image view objects
 	std::vector<VkCommandBuffer> commandBuffers;
 
-	// Graphics Pipeline stuff related
-	// buffer - a part of physical memory storage used to temp store data while its being moved 
-	// assembler - a program which takes basic comput instructions and converts them into bits that cpu can use to perform its operations
-	// vertex shader - graphics processing function used to add special effects to objects in 3d env (performs maths)
-	// tessellation - adding more vertices to existing geometry (basically subdivide a gemotery like we do in blender)
-	// geomtery shader - processes primitives (not used due to performance)
-	// rasterization -
-	// fragment shader - adding colors and depth to vertexes (usefull for shadow map generation)
-	// color blending - 
-
-	// stages with green color - fixed -function stages -> tweak there operations using parameters
-	// stages with orange color - we can upload own code to graphics card
+	// drawing 
+	VkSemaphore imageAvailableSemaphore; // syncing command queues
+	VkSemaphore renderFinishedSemaphore; // syncing command queues
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
 	void setupDebugMessenger();
 	void mainLoop(); // to render on window
 	void cleanup(); // after closing window, deallocating resources
+
+	void drawFrame();
 
 	void createInstance();
 	void createLogicalDevice();
@@ -113,6 +119,7 @@ private:
 	void createFrameBuffers();
 	void createCommandPool(); // create the command pool in the beginning and use them again and again later on
 	void createCommandBuffers(); // alocation of command buffers
+	void createSemaphores();
 
 	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();

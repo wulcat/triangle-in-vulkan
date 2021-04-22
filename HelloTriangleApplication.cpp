@@ -32,6 +32,7 @@ void HelloTriangleApplication::initVulkan() {
 	createFrameBuffers();
 	createCommandPool();
 	createCommandBuffers();
+	createSemaphores();
 }
 
 void HelloTriangleApplication::setupDebugMessenger() {
@@ -52,12 +53,19 @@ void HelloTriangleApplication::mainLoop() {
 	// Add event loop until the application is closed (this look also basically checks for event inputs)
 	while (!glfwWindowShouldClose(this->window)) {
 		glfwPollEvents();
+		drawFrame();
 	}
+
+	// wait for device to finish up all the queue commands before we go ahead and cleaup memory
+	vkDeviceWaitIdle(device);
 }
 
 
 // After the application is closed destroy the objects
 void HelloTriangleApplication::cleanup() {
+	vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
+	vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
+
 	vkDestroyCommandPool(device, commandPool, nullptr);
 
 	vkDestroyPipeline(device, graphicsPipeline, nullptr);
@@ -84,6 +92,63 @@ void HelloTriangleApplication::cleanup() {
 	glfwDestroyWindow(this->window);
 
 	glfwTerminate();
+}
+
+void HelloTriangleApplication::drawFrame() {
+	// all of these is executed async :()
+	// the returns from the swap chain events are unordered so we use fences or semaphores to sync
+
+	// fences - state can be accessed using vkWaitForFences - used for app rendering sync operations
+	// semaphores - state cannot be accessed - used to sync operations accorss or within command queues
+	
+	// acquire the image from the swap chain
+	uint32_t imageIndex; // index for vkimage from swapchainimages
+	// logical device :,: swap chain for image to acqure from, 
+	// timeout in nanoseconds(using max 64bit uint disables the timeout)
+	vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+	// execute the command buffer with that image as attachment in the frame buffer
+	
+	
+	
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	VkSemaphore waitSemaphores[] = { imageAvailableSemaphore };
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSemaphores;
+	submitInfo.pWaitDstStageMask = waitStages;
+	
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+
+	VkSemaphore signalSemaphores[] = { renderFinishedSemaphore };
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = signalSemaphores;
+
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+		throw std::runtime_error("failed to submit draw command buffer");
+	}
+
+	// return the image to the swap for presentation
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = signalSemaphores;
+
+	VkSwapchainKHR swapChains[] = { swapChain };
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapChains;
+
+	presentInfo.pImageIndices = &imageIndex;
+	// presentInfo.pResults = nullptr; // optinal
+
+	vkQueuePresentKHR(presentQueue, &presentInfo);
+	vkQueueWaitIdle(presentQueue); // make cpu wait until gpu is free
 }
 
 void HelloTriangleApplication::createInstance() {
@@ -355,6 +420,15 @@ void HelloTriangleApplication::createRenderPass() {
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 
+	//
+	VkSubpassDependency dependency{};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 	// render pass
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -362,6 +436,8 @@ void HelloTriangleApplication::createRenderPass() {
 	renderPassInfo.pAttachments = &colorAttachment;
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
+	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.pDependencies = &dependency;
 
 	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create render pass!");
@@ -652,10 +728,16 @@ void HelloTriangleApplication::createCommandBuffers() {
 			throw std::runtime_error("failed to record command buffer!");
 		}
 	}
+}
 
-	
+void HelloTriangleApplication::createSemaphores() {
+	VkSemaphoreCreateInfo semaphoreInfo{};
+	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-
+	if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS
+		|| vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create semaphore");
+	}
 }
 
 void HelloTriangleApplication::createLogicalDevice() {
