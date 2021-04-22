@@ -5,3 +5,5 @@ Drawing a triangle by following [Vulkan-tutorial](https://vulkan-tutorial.com/Dr
  -  [Vulkan SDK](https://vulkan.lunarg.com/)
  -  [GLFW binaries](https://www.glfw.org/)
  -  [GLM](https://github.com/g-truc/glm)
+
+![Alt text](images/NVIDIA_Share_MYT9wouWk2.png?raw=true "Title")
