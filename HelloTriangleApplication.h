@@ -14,6 +14,7 @@
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 // std::vector is sequence container
 const std::vector<const char*> validationLayers = {
@@ -97,9 +98,16 @@ private:
 	std::vector<VkFramebuffer> swapChainFramebuffers; // holds the refs to all image view objects
 	std::vector<VkCommandBuffer> commandBuffers;
 
-	// drawing 
-	VkSemaphore imageAvailableSemaphore; // syncing command queues
-	VkSemaphore renderFinishedSemaphore; // syncing command queues
+	// drawing  = each frame should have it own set of semaphores
+	// semaphores - state cannot be accessed - used to sync operations accorss or within command queues
+	std::vector<VkSemaphore> imageAvailableSemaphores; // syncing command queues
+	std::vector<VkSemaphore> renderFinishedSemaphores; // syncing command queues
+	// used for cpu - gpu syncronization
+	// fences - state can be accessed using vkWaitForFences - used for app rendering sync operations
+	std::vector<VkFence> inFlightFences; // fences can be signaled and wait for, but in the code. similar to semaphores
+	std::vector<VkFence> imagesInFlight;
+	// to use right pair of semaphores we keep trakc of current frame
+	size_t currentFrame = 0;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
@@ -119,9 +127,9 @@ private:
 	void createFrameBuffers();
 	void createCommandPool(); // create the command pool in the beginning and use them again and again later on
 	void createCommandBuffers(); // alocation of command buffers
-	void createSemaphores();
+	void createSyncObjects(); // semaphores is used for concurrent system (seems like multi threading stuff-will get to know next month sprint)
 
-	void getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount);
+	void getAndPrintRequiredExtensions(const char** glfwExtensions, size_t glfwExtensionCount);
 	void getAndPrintSupportedExtensions();
 
 	bool checkValidationLayerSupport();

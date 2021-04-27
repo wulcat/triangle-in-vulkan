@@ -32,7 +32,7 @@ void HelloTriangleApplication::initVulkan() {
 	createFrameBuffers();
 	createCommandPool();
 	createCommandBuffers();
-	createSemaphores();
+	createSyncObjects();
 }
 
 void HelloTriangleApplication::setupDebugMessenger() {
@@ -63,8 +63,11 @@ void HelloTriangleApplication::mainLoop() {
 
 // After the application is closed destroy the objects
 void HelloTriangleApplication::cleanup() {
-	vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
-	vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+		vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+		vkDestroyFence(device, inFlightFences[i], nullptr);
+	}
 
 	vkDestroyCommandPool(device, commandPool, nullptr);
 
@@ -95,27 +98,30 @@ void HelloTriangleApplication::cleanup() {
 }
 
 void HelloTriangleApplication::drawFrame() {
-	// all of these is executed async :()
+	// all of these is executed async :() so!
 	// the returns from the swap chain events are unordered so we use fences or semaphores to sync
+	vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
-	// fences - state can be accessed using vkWaitForFences - used for app rendering sync operations
-	// semaphores - state cannot be accessed - used to sync operations accorss or within command queues
-	
 	// acquire the image from the swap chain
 	uint32_t imageIndex; // index for vkimage from swapchainimages
 	// logical device :,: swap chain for image to acqure from, 
 	// timeout in nanoseconds(using max 64bit uint disables the timeout)
-	vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+	// Check if previous frame is using this frame
+	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+	}
+
+	// Mark the image as now being use by this frame
+	imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
 	// execute the command buffer with that image as attachment in the frame buffer
-	
-	
-	
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore waitSemaphores[] = { imageAvailableSemaphore };
+	VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
 	submitInfo.waitSemaphoreCount = 1;
@@ -125,11 +131,13 @@ void HelloTriangleApplication::drawFrame() {
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
-	VkSemaphore signalSemaphores[] = { renderFinishedSemaphore };
+	VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+	vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
 		throw std::runtime_error("failed to submit draw command buffer");
 	}
 
@@ -149,6 +157,8 @@ void HelloTriangleApplication::drawFrame() {
 
 	vkQueuePresentKHR(presentQueue, &presentInfo);
 	vkQueueWaitIdle(presentQueue); // make cpu wait until gpu is free
+
+	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void HelloTriangleApplication::createInstance() {
@@ -596,47 +606,47 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 0; // optional
-pipelineLayoutInfo.pSetLayouts = nullptr; // optional
-pipelineLayoutInfo.pushConstantRangeCount = 0; // optional
-pipelineLayoutInfo.pPushConstantRanges = nullptr; // optional
+	pipelineLayoutInfo.pSetLayouts = nullptr; // optional
+	pipelineLayoutInfo.pushConstantRangeCount = 0; // optional
+	pipelineLayoutInfo.pPushConstantRanges = nullptr; // optional
 
-if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout)) {
-	throw std::runtime_error("failed to create pipeline layout");
-}
+	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout)) {
+		throw std::runtime_error("failed to create pipeline layout");
+	}
 
-VkGraphicsPipelineCreateInfo pipelineInfo{};
-pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-pipelineInfo.stageCount = 2;
-pipelineInfo.pStages = shaderStages;
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
 
-// fixed function stage references
-pipelineInfo.pVertexInputState = &vertexInputInfo;
-pipelineInfo.pInputAssemblyState = &inputAssembly;
-pipelineInfo.pViewportState = &viewportState;
-pipelineInfo.pRasterizationState = &rasterizer;
-pipelineInfo.pMultisampleState = &multisampling;
-pipelineInfo.pDepthStencilState = nullptr;
-pipelineInfo.pColorBlendState = &colorBlending;
-pipelineInfo.pDynamicState = nullptr;
+	// fixed function stage references
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = nullptr;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDynamicState = nullptr;
 
-// vulkan handle rather than struc pointer
-pipelineInfo.layout = pipelineLayout;
+	// vulkan handle rather than struc pointer
+	pipelineInfo.layout = pipelineLayout;
 
-pipelineInfo.renderPass = renderPass;
-pipelineInfo.subpass = 0;
+	pipelineInfo.renderPass = renderPass;
+	pipelineInfo.subpass = 0;
 
-pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
-pipelineInfo.basePipelineIndex = -1; // optional
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
+	pipelineInfo.basePipelineIndex = -1; // optional
 
 
-// second param is related pipeline cache for reuse purpose f
-if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline) != VK_SUCCESS) {
-	throw std::runtime_error("failed to create graphics pipeline");
-}
+	// second param is related pipeline cache for reuse purpose f
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &graphicsPipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline");
+	}
 
-// cleanup right away after use
-vkDestroyShaderModule(device, vertShaderModule, nullptr);
-vkDestroyShaderModule(device, fragShaderModule, nullptr);
+	// cleanup right away after use
+	vkDestroyShaderModule(device, vertShaderModule, nullptr);
+	vkDestroyShaderModule(device, fragShaderModule, nullptr);
 }
 
 void HelloTriangleApplication::createFrameBuffers() {
@@ -674,6 +684,7 @@ void HelloTriangleApplication::createCommandPool() {
 		throw std::runtime_error("failed to create command pool!");
 	}
 }
+
 
 void HelloTriangleApplication::createCommandBuffers() {
 	commandBuffers.resize(swapChainFramebuffers.size());
@@ -730,13 +741,29 @@ void HelloTriangleApplication::createCommandBuffers() {
 	}
 }
 
-void HelloTriangleApplication::createSemaphores() {
+
+
+
+void HelloTriangleApplication::createSyncObjects() {
+	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+
+	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+	imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
+
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS
-		|| vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create semaphore");
+	VkFenceCreateInfo fenceInfo{};
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+			vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create sync objects in a frame!");
+		}
 	}
 }
 
@@ -796,11 +823,11 @@ void HelloTriangleApplication::createLogicalDevice() {
 }
 
 
-void HelloTriangleApplication::getAndPrintRequiredExtensions(const char** glfwExtensions, uint32_t glfwExtensionCount) {
+void HelloTriangleApplication::getAndPrintRequiredExtensions(const char** glfwExtensions, size_t glfwExtensionCount) {
 	std::cout << "Required Extensions: \n";
 
 	// warning over here: warning C4018: '<': signed/unsigned mismatch
-	for (int i = 0; i < glfwExtensionCount; i++) {
+	for (size_t i = 0; i < glfwExtensionCount; i++) {
 		printf("\t%s\n", glfwExtensions[i]);
 	}
 }
@@ -902,8 +929,6 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device) {
 		SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
 		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 	}
-
-	
 
 	return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
