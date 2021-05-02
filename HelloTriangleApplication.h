@@ -64,7 +64,7 @@ private:
 	VkSurfaceKHR surface; // device and surface are core components of swap chain
 
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-	VkDevice device;
+	VkDevice device; // this is the logical device 
 
 	// Graphics Pipeline stuff related
 	// buffer - a part of physical memory storage used to temp store data while its being moved 
@@ -108,6 +108,7 @@ private:
 	std::vector<VkFence> imagesInFlight;
 	// to use right pair of semaphores we keep trakc of current frame
 	size_t currentFrame = 0;
+	bool framebufferResized = false;
 
 	void initWindow(); // setup the glfw for application
 	void initVulkan(); // setup the vulkan
@@ -116,6 +117,9 @@ private:
 	void cleanup(); // after closing window, deallocating resources
 
 	void drawFrame();
+
+	void recreateSwapChain();
+	void cleanupSwapChain();
 
 	void createInstance();
 	void createLogicalDevice();
@@ -149,6 +153,7 @@ private:
 		void* pUserData);
 
 	static std::vector<char> readFile(const std::string& fileName);
+	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	void pickPhysicalDevice();
